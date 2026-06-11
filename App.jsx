@@ -1,16 +1,13 @@
 // ─── Cloud Config ────────────────────────────────────────────────────────────
-// Prüft zuerst, ob wir lokal testen, andernfalls wird die Vercel-Variable oder die aktuelle Domain genutzt
-const getBackendUrl = () => {
+function getBackendUrl() {
   if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
     return "http://localhost:3001";
   }
-  // Falls %VITE_BACKEND_URL% nicht von Vercel ersetzt wurde, versuchen wir die Variable direkt zu lesen
-  if (window.VITE_BACKEND_URL && !window.VITE_BACKEND_URL.startsWith("%")) {
-    return window.VITE_BACKEND_URL.replace(/\/$/, "");
+  if (window.VITE_BACKEND_URL) {
+    return window.VITE_BACKEND_URL;
   }
-  // Fallback: Wenn alles fehlschlägt, nutzen wir die Render-URL direkt aus dem Prozess (wird von Vercel injiziert)
-  return (import.meta.env?.VITE_BACKEND_URL || "").replace(/\/$/, "");
-};
+  return "https://my-automatch-backend.onrender.com";
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const fmtPrice = (p) => Number(p).toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
@@ -386,11 +383,11 @@ function AutoMatch() {
       Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
 
       const backendUrl = getBackendUrl();
-      const res = await fetch(`${backendUrl}/api/search?${params.toString()}`);
-      if (!res.ok) throw new Error(`Server Fehler ${res.status}`);
+      const res = await fetch(backendUrl + "/api/search?" + params.toString());
+      if (!res.ok) throw new Error("Server Fehler " + res.status);
       const data = await res.json();
 
-      if (!data.ads?.length) {
+      if (!data.ads || !data.ads.length) {
         setError("Keine Treffer. Filter anpassen?");
         setLoading(false);
         return;
