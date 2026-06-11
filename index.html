@@ -11,9 +11,13 @@
   <body>
     <div id="root"></div>
 
+    <script type="text/babel">
+      // Macht die Vercel-Umgebungsvariable im Browser verfügbar
+      window.VITE_BACKEND_URL = "%VITE_BACKEND_URL%";
+    </script>
+
     <script type="text/babel" src="App.jsx"></script>
     <script type="text/babel">
-      // Startet die App
       const root = ReactDOM.createRoot(document.getElementById('root'));
       root.render(React.createElement(AutoMatch));
     </script>
