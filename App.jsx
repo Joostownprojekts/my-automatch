@@ -1,12 +1,3 @@
-Ja, das ist die komplett aktualisierte und vollständige **`App.jsx`**.
-
-Ich habe den gesamten Code deiner React-App neu aufgebaut. Sie nutzt jetzt deinen ScraperAPI-Key, um die Desktop-Website von mobile.de abzurufen, und holt die Fahrzeugdaten direkt aus dem darin versteckten Next.js-Datenspeicher (`__NEXT_DATA__`). Zudem ist der Code jetzt fehlerresistent und stürzt nicht mehr ab, wenn ein Aufruf fehlschlägt.
-
-Hier ist die **komplette neue Datei**, die du eins zu eins kopieren und in dein Vercel-Projekt einfügen kannst:
-
-```jsx
-// App.jsx - Vollständige, fehlerresistente Scraping-Variante via ScraperAPI
-
 const fmtPrice = (p) => Number(p).toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const fmtKm = (k) => Number(k).toLocaleString("de-DE") + " km";
 const kwToPs = (kw) => kw ? Math.round(kw * 1.36) : null;
@@ -390,10 +381,7 @@ function AutoMatch() {
         p.set('ambitDistance', filters.radius || '50');
       }
 
-      // Wir rufen die Desktop-Website auf, da dort die Daten strukturiert eingebettet sind
       const mobileWebUrl = `https://suchen.mobile.de/fahrzeuge/search.html?${p.toString()}`;
-      
-      // Nutzt deinen ScraperAPI Key mit Premium-Residential-Proxies und JavaScript-Aktivierung
       const scraperUrl = `https://api.scraperapi.com?api_key=4a13f39e7abb638bb4ccadb182026345&url=${encodeURIComponent(mobileWebUrl)}&country_code=de&premium=true&render=true`;
 
       const res = await fetch(scraperUrl);
@@ -401,7 +389,6 @@ function AutoMatch() {
       
       const htmlText = await res.text();
 
-      // Wir extrahieren das eingebettete JSON-Datenobjekt (State) aus dem HTML-Quelltext
       let jsonState = null;
       const matchNextData = htmlText.match(/<script[^>]*id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
       
@@ -409,62 +396,4 @@ function AutoMatch() {
         const fullParsed = JSON.parse(matchNextData[1].trim());
         jsonState = fullParsed?.props?.pageProps?.searchResult || fullParsed?.props?.pageProps;
       } else {
-        // Fallback falls Mobile.de das alternative INITIAL_STATE Format nutzt
-        const matchInitialState = htmlText.match(/window\.__INITIAL_STATE__\s*=\s*(\{.*?\});<\/script>/);
-        if (matchInitialState && matchInitialState[1]) {
-          jsonState = JSON.parse(matchInitialState[1]);
-        }
-      }
-
-      // Auslesen der Artikelliste (Listings) aus dem extrahierten JSON
-      const listings = jsonState?.listings || jsonState?.results || [];
-
-      if (!listings.length) {
-        setError("Keine Treffer erhalten. Bitte passe deine Filtereinstellungen an.");
-        setLoading(false);
-        return;
-      }
-
-      // Daten normalisieren für die Swipe-Karten
-      const normalized = listings.map((ad, idx) => {
-        return {
-          id: ad.id || String(idx),
-          make: ad.make || ad.title?.split(' ')?.[0] || 'Auto',
-          model: ad.model || ad.title?.split(' ')?.slice(1)?.join(' ') || '',
-          price: ad.price?.amount || ad.price || null,
-          mileage: ad.mileage || null,
-          power_kw: ad.powerKw || ad.power || null,
-          fuel: ad.fuelType || ad.fuel || null,
-          gearbox: ad.transmission || ad.gearbox || null,
-          firstRegistration: ad.firstRegistration || null,
-          city: ad.location || null,
-          image: ad.images?.[0]?.uri ? ad.images[0].uri.replace('{size}', '400x300') : (ad.imageUrl || null),
-          url: ad.id ? `https://suchen.mobile.de/fahrzeuge/details.html?id=${ad.id}` : null
-        };
-      });
-
-      setCars(normalized);
-      setScreen("swipe");
-    } catch (e) {
-      setError("Fehler beim Verarbeiten der Fahrzeugdaten. Versuche es bitte noch einmal.");
-    }
-    setLoading(false);
-  };
-
-  return (
-    <div style={{
-      minHeight: "100vh", background: "#0d0d0d",
-      fontFamily: "'DM Sans',sans-serif",
-      display: "flex", flexDirection: "column", alignItems: "center",
-      overflowX: "hidden", userSelect: "none", paddingBottom: 20,
-    }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;800&display=swap');`}</style>
-      {screen === "filter"
-        ? <FilterScreen onSearch={handleSearch} loading={loading} error={error} />
-        : <SwipeScreen cars={cars} onReset={() => { setScreen("filter"); setCars([]); }} />
-      }
-    </div>
-  );
-}
-
-```
+        const matchInitialState = htmlText.match
