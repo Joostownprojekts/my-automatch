@@ -30,7 +30,7 @@ function FilterScreen({ onSearch, loading, error }) {
           <span style={{ color: "#fff" }}>Auto</span>
           <span style={{ background: "linear-gradient(90deg,#ff4b4b,#ff9b00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Match</span>
         </div>
-        <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>Mobile.de Stealth HTML Engine via ScraperAPI 🛡️⚡</div>
+        <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>Mobile.de Bypass HTML Engine via ScraperAPI 🛡️⚡</div>
       </div>
 
       <Sec title="⛽ Antrieb">
@@ -107,7 +107,7 @@ function CarCard({ car, swipeDir, dragX }) {
         {car.image ? (
           <img src={car.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }} />
         ) : (
-          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyY: "center", fontSize: 56, color: "#2a2a2a", textAlign: "center", paddingTop: 80 }}>🚗</div>
+          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 56, color: "#2a2a2a", textAlign: "center", paddingTop: 80 }}>🚗</div>
         )}
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 45%, #1c1c1e 100%)" }} />
 
@@ -383,19 +383,12 @@ function AutoMatch() {
 
       const mobileWebUrl = `https://suchen.mobile.de/fahrzeuge/search.html?${p.toString()}`;
       
-      // OPTIMIERUNG: `keep_headers=true` zwingt ScraperAPI, unsere Browser-Header mitzusenden.
-      const scraperUrl = `https://api.scraperapi.com?api_key=4a13f39e7abb638bb4ccadb182026345&url=${encodeURIComponent(mobileWebUrl)}&country_code=de&premium=true&keep_headers=true`;
+      // FIX: Keine 'headers' im Fetch verwenden, stattdessen steuern wir ScraperAPI vollständig über URLs.
+      // 'binary=true' liefert den reinen HTML-Stream unkomprimiert und umgeht CORS OPTIONS-Verfahren.
+      const scraperUrl = `https://api.scraperapi.com?api_key=4a13f39e7abb638bb4ccadb182026345&url=${encodeURIComponent(mobileWebUrl)}&country_code=de&premium=true&binary=true`;
 
-      // Stealth-Header mitsenden, damit mobile.de uns sofort als echten Browser akzeptiert
-      const res = await fetch(scraperUrl, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-          "Accept-Language": "de,en-US;q=0.7,en;q=0.3"
-        }
-      });
-      
-      if (!res.ok) throw new Error(`HTTP Fehler: ${res.status}`);
+      const res = await fetch(scraperUrl);
+      if (!res.ok) throw new Error("Verbindung über den Premium-Proxy fehlgeschlagen.");
       
       const htmlText = await res.text();
 
@@ -415,7 +408,7 @@ function AutoMatch() {
       const listings = jsonState?.listings || jsonState?.results || [];
 
       if (!listings.length) {
-        setError("Keine Treffer erhalten oder temporär blockiert. Bitte Passe die Filter an.");
+        setError("Aktuell keine Fahrzeuge gefunden. Ändere die Filterkriterien (z. B. Budget oder Umkreis).");
         setLoading(false);
         return;
       }
@@ -440,7 +433,7 @@ function AutoMatch() {
       setCars(normalized);
       setScreen("swipe");
     } catch (e) {
-      setError("Verbindung blockiert oder verlangsamt. Versuche es bitte noch einmal.");
+      setError("Verbindung blockiert. Bitte versuche es in wenigen Momenten erneut.");
     }
     setLoading(false);
   };
