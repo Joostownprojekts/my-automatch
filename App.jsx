@@ -1,8 +1,16 @@
 // ─── Cloud Config ────────────────────────────────────────────────────────────
-// Erkennt automatisch die Backend-URL in der Cloud. Lokal wird localhost genutzt.
-const PROXY = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" 
-  ? "http://localhost:3001" 
-  : "https://dein-backend.onrender.com"; // Hinweis: Falls du die VITE_BACKEND_URL nutzt, liest die index.html sie aus.
+// Prüft zuerst, ob wir lokal testen, andernfalls wird die Vercel-Variable oder die aktuelle Domain genutzt
+const getBackendUrl = () => {
+  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+    return "http://localhost:3001";
+  }
+  // Falls %VITE_BACKEND_URL% nicht von Vercel ersetzt wurde, versuchen wir die Variable direkt zu lesen
+  if (window.VITE_BACKEND_URL && !window.VITE_BACKEND_URL.startsWith("%")) {
+    return window.VITE_BACKEND_URL.replace(/\/$/, "");
+  }
+  // Fallback: Wenn alles fehlschlägt, nutzen wir die Render-URL direkt aus dem Prozess (wird von Vercel injiziert)
+  return (import.meta.env?.VITE_BACKEND_URL || "").replace(/\/$/, "");
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const fmtPrice = (p) => Number(p).toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
@@ -377,8 +385,7 @@ function AutoMatch() {
       const params = new URLSearchParams();
       Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
 
-      // Holt sich die Backend-URL dynamisch aus dem globalen Fenster-Objekt, falls Vercel sie injiziert hat
-      const backendUrl = window.VITE_BACKEND_URL || PROXY;
+      const backendUrl = getBackendUrl();
       const res = await fetch(`${backendUrl}/api/search?${params.toString()}`);
       if (!res.ok) throw new Error(`Server Fehler ${res.status}`);
       const data = await res.json();
