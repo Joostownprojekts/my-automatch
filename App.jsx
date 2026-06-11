@@ -382,10 +382,13 @@ function AutoMatch() {
       }
 
       const mobileWebUrl = `https://suchen.mobile.de/fahrzeuge/search.html?${p.toString()}`;
-      const scraperUrl = `https://api.scraperapi.com?api_key=4a13f39e7abb638bb4ccadb182026345&url=${encodeURIComponent(mobileWebUrl)}&country_code=de&premium=true&render=true`;
+      
+      // OPTIMIERUNG: country_code=de & premium=true hängen nun sauber am ScraperAPI-Endpunkt.
+      // render=true wurde entfernt, damit ScraperAPI nicht in den Javascript-Timeout läuft.
+      const scraperUrl = `https://api.scraperapi.com?api_key=4a13f39e7abb638bb4ccadb182026345&url=${encodeURIComponent(mobileWebUrl)}&country_code=de&premium=true`;
 
       const res = await fetch(scraperUrl);
-      if (!res.ok) throw new Error("Verbindung zum Server failed.");
+      if (!res.ok) throw new Error("Proxy-Anfrage fehlgeschlagen oder Timeout.");
       
       const htmlText = await res.text();
 
