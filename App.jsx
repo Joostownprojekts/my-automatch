@@ -1,4 +1,4 @@
-// App.jsx - CORS-sichere Variante über mobile.de App-API via ScraperAPI
+// App.jsx - Blockadefreie Live-Variante via RSS-to-JSON Feed
 
 const fmtPrice = (p) => Number(p).toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const fmtKm = (k) => Number(k).toLocaleString("de-DE") + " km";
@@ -32,7 +32,7 @@ function FilterScreen({ onSearch, loading, error }) {
           <span style={{ color: "#fff" }}>Auto</span>
           <span style={{ background: "linear-gradient(90deg,#ff4b4b,#ff9b00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Match</span>
         </div>
-        <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>Mobile.de App-API Core Secure Tunnel 🛡️⚡</div>
+        <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>Mobile.de RSS Feed Stream Tunnel 🛡️⚡</div>
       </div>
 
       <Sec title="⛽ Antrieb">
@@ -86,7 +86,7 @@ function FilterScreen({ onSearch, loading, error }) {
           cursor: loading ? "not-allowed" : "pointer", marginTop: 4,
         }}
       >
-        {loading ? "Daten werden geladen…" : "🔥 Los swipe'n"}
+        {loading ? "Fahrzeuge werden gesucht…" : "🔥 Los swipe'n"}
       </button>
     </div>
   );
@@ -102,7 +102,6 @@ function Sec({ title, children }) {
 }
 
 function CarCard({ car, swipeDir, dragX }) {
-  const ps = kwToPs(car.power_kw);
   return (
     <>
       <div style={{ position: "relative", height: 265, overflow: "hidden", background: "#111" }}>
@@ -128,19 +127,16 @@ function CarCard({ car, swipeDir, dragX }) {
 
       <div style={{ padding: "12px 16px" }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 6 }}>
-          <div style={{ fontSize: 19, fontWeight: 800, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {car.make} {car.model}
-            <span style={{ fontSize: 13, color: "#666", fontWeight: 400, marginLeft: 6 }}>{fmtYear(car.firstRegistration)}</span>
+          <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", whiteSpace: "normal" }}>
+            {car.title}
           </div>
-          {car.tuev && <span style={{ fontSize: 10, color: "#999", background: "#222", borderRadius: 6, padding: "2px 7px", flexShrink: 0 }}>TÜV {car.tuev}</span>}
         </div>
 
         <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
           {car.mileage && <Chip icon="🛣️" val={fmtKm(car.mileage)} />}
-          {ps && <Chip icon="⚡" val={`${ps} PS`} />}
+          {car.firstRegistration && <Chip icon="📅" val={`EZ ${car.firstRegistration}`} />}
           {car.fuel && <Chip icon="⛽" val={fmtFuel(car.fuel)} />}
           {car.gearbox && <Chip icon="🔧" val={fmtGear(car.gearbox)} />}
-          {car.city && <Chip icon="📍" val={car.city} />}
         </div>
 
         {car.url && (
@@ -197,8 +193,8 @@ function LikedTab({ liked }) {
             : <div style={{ width: 88, height: 70, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0 }}>🚗</div>
           }
           <div style={{ padding: "10px 10px 10px 0", flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {car.make} {car.model} <span style={{ color: "#555", fontWeight: 400, fontSize: 11 }}>{fmtYear(car.firstRegistration)}</span>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {car.title}
             </div>
             <div style={{ fontSize: 15, fontWeight: 800, color: "#ff9b00", marginTop: 1 }}>
               {car.price ? fmtPrice(car.price) : "–"}
@@ -327,7 +323,7 @@ function SwipeScreen({ cars, onReset }) {
           <div style={{ background: "#1a1a1a", borderRadius: 24, padding: "32px 28px", textAlign: "center", border: "1px solid #2a2a2a", animation: "pop 0.2s ease" }}>
             <div style={{ fontSize: 44 }}>🔥</div>
             <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginTop: 8 }}>Geliked!</div>
-            <div style={{ fontSize: 14, color: "#777", marginTop: 4 }}>{showMatch.make} {showMatch.model}</div>
+            <div style={{ fontSize: 14, color: "#777", marginTop: 4 }}>{showMatch.title}</div>
           </div>
         </div>
       )}
@@ -367,62 +363,80 @@ function AutoMatch() {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      params.set('customerId', '');
-      params.set('pageNumber', '1');
-      params.set('pageSize', '25');
-      params.set('sortField', 'RELEVANCE');
-      params.set('sortOrder', 'DESCENDING');
-
-      if (filters.priceMin) params.set('price.min', filters.priceMin);
-      if (filters.priceMax) params.set('price.max', filters.priceMax);
-      if (filters.kmMax)    params.set('mileage.max', filters.kmMax);
-      if (filters.yearMin)  params.set('firstRegistration.min', `${filters.yearMin}-01`);
-      if (filters.fuel)     params.set('fuelTypes', filters.fuel);
-      if (filters.gearbox)  params.set('transmissions', filters.gearbox);
-      if (filters.plz) { 
-        params.set('localArea.zipCode', filters.plz); 
-        params.set('localArea.radius', filters.radius || '50'); 
+      const p = new URLSearchParams();
+      p.set('vc', 'Car');
+      p.set('damUnrep', 'false');
+      
+      if (filters.priceMin) p.set('minPrice', filters.priceMin);
+      if (filters.priceMax) p.set('maxPrice', filters.priceMax);
+      if (filters.kmMax)    p.set('maxMileage', filters.kmMax);
+      if (filters.yearMin)  p.set('minFirstRegistrationDate', filters.yearMin);
+      if (filters.fuel)     p.set('fuel', filters.fuel);
+      if (filters.gearbox)  p.set('gearbox', filters.gearbox);
+      if (filters.plz) {
+        p.set('zipcode', filters.plz);
+        p.set('ambitDistance', filters.radius || '50');
       }
 
-      const mobileApiUrl = `https://m.mobile.de/svc/s/listings?${params.toString()}`;
-      // Hier ist dein ScraperAPI-Aufruf inklusive render=true und premium=true konfiguriert
-      const scraperUrl = `https://api.scraperapi.com?api_key=4a13f39e7abb638bb4ccadb182026345&url=${encodeURIComponent(mobileApiUrl)}&country_code=de&render=true&premium=true`;
+      // Der offizielle, unblockierte RSS-Feed von mobile.de
+      const targetRssUrl = `https://suchen.mobile.de/fahrzeuge/search.html?${p.toString()}&_art=rss`;
+      
+      // Freie Open-Source Konvertierung von RSS zu sauberem JSON ohne API-Key Limitierungen
+      const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(targetRssUrl)}`;
 
-      const res = await fetch(scraperUrl);
-      if (!res.ok) throw new Error("Verbindung zur Schnittstelle fehlgeschlagen.");
+      const res = await fetch(apiUrl);
+      if (!res.ok) throw new Error("Verbindung zum Datenstrom fehlgeschlagen.");
       
       const data = await res.json();
-      const listings = data?.listings || [];
+      const items = data?.items || [];
 
-      if (!listings.length) {
+      if (!items.length) {
         setError("Keine Treffer gefunden. Passe deine Filter an.");
         setLoading(false);
         return;
       }
 
-      const normalized = listings.map(ad => {
+      const normalized = items.map(item => {
+        // Extrahiere das Bild aus dem RSS-Inhalt
+        let imgUrl = null;
+        if (item.description) {
+          const m = item.description.match(/src="([^"]+)"/);
+          if (m) imgUrl = m[1];
+        }
+
+        // Parse wichtige Kenndaten aus dem Beschreibungstext des Feeds
+        let price = null;
+        let mileage = null;
+        let firstRegistration = null;
+        
+        if (item.description) {
+          const pMatch = item.description.match(/EUR\s([\d.]+)/);
+          if (pMatch) price = parseInt(pMatch[1].replace(/\./g, ''));
+
+          const kmMatch = item.description.match(/([\d.]+)\skm/);
+          if (kmMatch) mileage = parseInt(kmMatch[1].replace(/\./g, ''));
+
+          const ezMatch = item.description.match(/EZ\s(\d{2}\/\d{4})/);
+          if (ezMatch) firstRegistration = ezMatch[1];
+        }
+
         return {
-          id: ad.id,
-          make: ad.make || '',
-          model: ad.model || '',
-          price: ad.price?.amount || null,
-          mileage: ad.mileage || null,
-          power_kw: ad.powerKw || null,
-          fuel: ad.fuelType || null,
-          gearbox: ad.transmission || null,
-          firstRegistration: ad.firstRegistration || null,
-          tuev: ad.hu || null,
-          city: ad.location || null,
-          image: ad.images?.[0]?.uri ? ad.images[0].uri.replace('{size}', '400x300') : null,
-          url: ad.id ? `https://suchen.mobile.de/fahrzeuge/details.html?id=${ad.id}` : null
+          id: item.guid || Math.random().toString(),
+          title: item.title || 'Unbekanntes Fahrzeug',
+          price: price,
+          mileage: mileage,
+          firstRegistration: firstRegistration,
+          fuel: filters.fuel || null,
+          gearbox: filters.gearbox || null,
+          image: imgUrl,
+          url: item.link || null
         };
       });
 
       setCars(normalized);
       setScreen("swipe");
     } catch (e) {
-      setError("Die Daten konnten nicht geladen werden. Bitte kontrolliere deine Filter oder versuche es noch einmal.");
+      setError("Fehler beim Abrufen der Inserate. Bitte versuche es gleich noch einmal.");
     }
     setLoading(false);
   };
