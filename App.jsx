@@ -1,12 +1,5 @@
-// ─── Cloud Config ────────────────────────────────────────────────────────────
-function getBackendUrl() {
-  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-    return "http://localhost:3000"; // Lokale Vercel-Dev Umgebung
-  }
-  return window.VITE_BACKEND_URL || "";
-}
+// App.jsx - Lokale Direkt-Variante über AllOrigins CORS-Proxy (Kein eigenes Backend nötig!)
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 const fmtPrice = (p) => Number(p).toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const fmtKm = (k) => Number(k).toLocaleString("de-DE") + " km";
 const kwToPs = (kw) => kw ? Math.round(kw * 1.36) : null;
@@ -18,7 +11,6 @@ const fmtYear = (s) => {
 const fmtFuel = (f) => ({ DIESEL: "Diesel", PETROL: "Benzin", ELECTRIC: "Elektro", HYBRID: "Hybrid", NATURAL_GAS: "Gas", LPG: "LPG" }[f] || f || "–");
 const fmtGear = (g) => ({ MANUAL_GEAR: "Schaltung", AUTOMATIC_GEAR: "Automatik", SEMIAUTOMATIC_GEAR: "Halbautomatik" }[g] || g || "–");
 
-// ─── Filter Screen ────────────────────────────────────────────────────────────
 function FilterScreen({ onSearch, loading, error }) {
   const [f, setF] = React.useState({
     priceMin: "", priceMax: "", kmMax: "", yearMin: "",
@@ -40,7 +32,7 @@ function FilterScreen({ onSearch, loading, error }) {
           <span style={{ color: "#fff" }}>Auto</span>
           <span style={{ background: "linear-gradient(90deg,#ff4b4b,#ff9b00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Match</span>
         </div>
-        <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>Serverless Vercel Edition 📱⚡</div>
+        <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>Direct Core Connection 📱⚡</div>
       </div>
 
       <Sec title="⛽ Antrieb">
@@ -94,7 +86,7 @@ function FilterScreen({ onSearch, loading, error }) {
           cursor: loading ? "not-allowed" : "pointer", marginTop: 4,
         }}
       >
-        {loading ? "Lade Inserate…" : "🔥 Los swipe'n"}
+        {loading ? "Verbinde mit mobile.de…" : "🔥 Los swipe'n"}
       </button>
     </div>
   );
@@ -109,7 +101,6 @@ function Sec({ title, children }) {
   );
 }
 
-// ─── Card ─────────────────────────────────────────────────────────────────────
 function CarCard({ car, swipeDir, dragX }) {
   const ps = kwToPs(car.power_kw);
   return (
@@ -183,6 +174,7 @@ function Stamp({ color, side, opacity, children }) {
   );
 }
 
+// Hilfskomponente für Daten-Chips
 function Chip({ icon, val }) {
   return (
     <span style={{ fontSize: 12, color: "#bbb", display: "flex", alignItems: "center", gap: 3 }}>
@@ -191,7 +183,6 @@ function Chip({ icon, val }) {
   );
 }
 
-// ─── Liked Tab ────────────────────────────────────────────────────────────────
 function LikedTab({ liked }) {
   if (liked.length === 0) return (
     <div style={{ color: "#444", textAlign: "center", marginTop: 60, fontSize: 15 }}>Noch nichts geliked 🫤</div>
@@ -219,7 +210,6 @@ function LikedTab({ liked }) {
   );
 }
 
-// ─── Swipe Screen ─────────────────────────────────────────────────────────────
 function SwipeScreen({ cars, onReset }) {
   const [deck, setDeck] = React.useState([...cars].reverse());
   const [liked, setLiked] = React.useState([]);
@@ -377,23 +367,75 @@ function AutoMatch() {
     setError(null);
     try {
       const params = new URLSearchParams();
-      Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
+      params.set('s', 'Car');
+      params.set('isSearchRequest', 'true');
+      params.set('sb', 'rel');
+      params.set('vc', 'Car');
+      params.set('damUnrep', 'false');
 
-      const backendUrl = getBackendUrl();
-      // Ruft die Serverless Function auf Vercel auf
-      const res = await fetch(backendUrl + "/api/search?" + params.toString());
-      if (!res.ok) throw new Error("Server Fehler " + res.status);
-      const data = await res.json();
+      if (filters.priceMin) params.set('p', `${filters.priceMin}:`);
+      if (filters.priceMax) params.set('p', `${filters.priceMin || ''}:${filters.priceMax}`);
+      if (filters.kmMax)    params.set('ml', `:${filters.kmMax}`);
+      if (filters.yearMin)  params.set('fr', `${filters.yearMin}:`);
+      if (filters.fuel)     params.set('ft', filters.fuel);
+      if (filters.gearbox)  params.set('tr', filters.gearbox);
+      if (filters.plz) { 
+        params.set('zip', filters.plz); 
+        params.set('zipr', filters.radius || '50'); 
+      }
 
-      if (!data.ads || !data.ads.length) {
-        setError("Keine Treffer. Filter anpassen?");
+      const mobileUrl = `https://suchen.mobile.de/fahrzeuge/search.html?${params.toString()}`;
+      
+      // Nutzt die freie AllOrigins CORS-Bridge. Die Anfrage verhält sich so, als käme sie direkt von deinem Smartphone-Browser.
+      const bridgeUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(mobileUrl)}`;
+
+      const res = await fetch(bridgeUrl);
+      if (!res.ok) throw new Error("Netzwerk-Brücke blockiert.");
+      
+      const bridgeData = await res.json();
+      const html = bridgeData.contents;
+
+      const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
+      if (!match) {
+        throw new Error("Antispam aktiv. Versuche es gleich noch einmal oder ändere die Filter leicht.");
+      }
+
+      const nextData = JSON.parse(match[1]);
+      const listings = nextData?.props?.pageProps?.srp?.data?.listings
+        || nextData?.props?.pageProps?.listings
+        || [];
+
+      if (!listings.length) {
+        setError("Keine Treffer gefunden. Passe deine Filter an.");
         setLoading(false);
         return;
       }
-      setCars(data.ads);
+
+      const normalized = listings.map(ad => {
+        const v = ad.attributes || ad;
+        return {
+          id: ad.id,
+          make: v.make?.displayValue || v.make || '',
+          model: v.model?.displayValue || v.model || '',
+          title: ad.description || v.modelDescription || '',
+          price: v.price?.amount || v.grossPrice || null,
+          currency: 'EUR',
+          mileage: v.mileage?.value || v.mileage || null,
+          power_kw: v.power?.kw || null,
+          fuel: v.fuel?.displayValue || v.fuel || null,
+          gearbox: v.gearbox?.displayValue || v.gearbox || null,
+          firstRegistration: v.firstRegistration || null,
+          tuev: v.generalInspection || null,
+          city: v.sellerAddress?.city || v.location?.city || null,
+          image: ad.previewImage?.src || ad.images?.[0]?.src || null,
+          url: ad.relativeUrl ? `https://suchen.mobile.de${ad.relativeUrl}` : null
+        };
+      });
+
+      setCars(normalized);
       setScreen("swipe");
     } catch (e) {
-      setError("Verbindung zum Proxy-Server fehlgeschlagen.");
+      setError(e.message || "Fehler beim Laden der Inserate.");
     }
     setLoading(false);
   };
