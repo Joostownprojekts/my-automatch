@@ -1,4 +1,4 @@
-// App.jsx - CORS-sichere Variante über mobile.de App-API via ScraperAPI
+// App.jsx - CORS-sichere Variante über mobile.de App-API via ScraperAPI (Syntax-bereinigt)
 
 const fmtPrice = (p) => Number(p).toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const fmtKm = (k) => Number(k).toLocaleString("de-DE") + " km";
@@ -154,4 +154,290 @@ function CarCard({ car, swipeDir, dragX }) {
               textDecoration: "none", fontWeight: 600,
             }}
           >
-            📋
+            📋 Inserat auf mobile.de öffnen ↗
+          </a>
+        )}
+      </div>
+    </>
+  );
+}
+
+function Stamp({ color, side, opacity, children }) {
+  return (
+    <div style={{
+      position: "absolute", top: 22, [side]: 18,
+      border: `3px solid ${color}`, color,
+      borderRadius: 8, padding: "3px 12px", fontSize: 20, fontWeight: 900,
+      transform: side === "left" ? "rotate(-15deg)" : "rotate(15deg)",
+      opacity,
+    }}>{children}</div>
+  );
+}
+
+function Chip({ icon, val }) {
+  return (
+    <span style={{ fontSize: 12, color: "#bbb", display: "flex", alignItems: "center", gap: 3 }}>
+      <span>{icon}</span>{val}
+    </span>
+  );
+}
+
+function LikedTab({ liked }) {
+  if (liked.length === 0) {
+    return (
+      <div style={{ color: "#444", textAlign: "center", marginTop: 60, fontSize: 15 }}>Noch nichts geliked 🫤</div>
+    );
+  }
+  return (
+    <div style={{ width: "100%", padding: "14px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+      {liked.map((car, i) => (
+        <div key={i} style={{ background: "#1c1c1e", borderRadius: 14, display: "flex", gap: 10, overflow: "hidden", border: "1px solid #222" }}>
+          {car.image
+            ? <img src={car.image} alt="" style={{ width: 88, height: 70, objectFit: "cover", flexShrink: 0 }} />
+            : <div style={{ width: 88, height: 70, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0 }}>🚗</div>
+          }
+          <div style={{ padding: "10px 10px 10px 0", flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {car.make} {car.model} <span style={{ color: "#555", fontWeight: 400, fontSize: 11 }}>{fmtYear(car.firstRegistration)}</span>
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#ff9b00", marginTop: 1 }}>
+              {car.price ? fmtPrice(car.price) : "–"}
+            </div>
+            {car.url && <a href={car.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "#ff9b00", textDecoration: "none" }}>→ Inserat öffnen</a>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SwipeScreen({ cars, onReset }) {
+  const [deck, setDeck] = React.useState([...cars].reverse());
+  const [liked, setLiked] = React.useState([]);
+  const [disliked, setDisliked] = React.useState([]);
+  const [dragX, setDragX] = React.useState(0);
+  const [isDragging, setIsDragging] = React.useState(false);
+  const [swipeDir, setSwipeDir] = React.useState(null);
+  const [animOut, setAnimOut] = React.useState(null);
+  const [showMatch, setShowMatch] = React.useState(null);
+  const [tab, setTab] = React.useState("swipe");
+  const dragStart = React.useRef(null);
+
+  const top = deck[deck.length - 1];
+
+  const triggerSwipe = (dir) => {
+    if (!top || animOut) return;
+    setAnimOut(dir);
+    setTimeout(() => {
+      if (dir === "right") {
+        setLiked((p) => [top, ...p]);
+        setShowMatch(top);
+        setTimeout(() => setShowMatch(null), 1200);
+      } else {
+        setDisliked((p) => [top, ...p]);
+      }
+      setDeck((p) => p.slice(0, -1));
+      setAnimOut(null);
+      setDragX(0);
+      setSwipeDir(null);
+    }, 300);
+  };
+
+  const onDown = (e) => { dragStart.current = e.clientX; setIsDragging(true); };
+  const onMove = (e) => {
+    if (!isDragging || dragStart.current == null) return;
+    const dx = e.clientX - dragStart.current;
+    setDragX(dx);
+    setSwipeDir(dx > 30 ? "right" : dx < -30 ? "left" : null);
+  };
+  const onUp = () => {
+    setIsDragging(false);
+    if (dragX > 80) triggerSwipe("right");
+    else if (dragX < -80) triggerSwipe("left");
+    else { setDragX(0); setSwipeDir(null); }
+    dragStart.current = null;
+  };
+
+  const cardStyle = () => {
+    if (animOut === "right") return { transform: "translateX(120vw) rotate(25deg)", transition: "transform 0.3s ease", opacity: 0 };
+    if (animOut === "left") return { transform: "translateX(-120vw) rotate(-25deg)", transition: "transform 0.3s ease", opacity: 0 };
+    if (isDragging) return { transform: `translateX(${dragX}px) rotate(${dragX * 0.04}deg)`, transition: "none" };
+    return { transform: "translateX(0) rotate(0deg)", transition: "transform 0.25s ease" };
+  };
+
+  return (
+    <div style={{ width: "100%", maxWidth: 420, display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <div style={{ width: "100%", padding: "14px 20px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontSize: 20, fontWeight: 900 }}>
+          <span style={{ color: "#fff" }}>Auto</span>
+          <span style={{ background: "linear-gradient(90deg,#ff4b4b,#ff9b00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Match</span>
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <TBtn active={tab === "swipe"} onClick={() => setTab("swipe")}>🔥 Swipe</TBtn>
+          <TBtn active={tab === "liked"} onClick={() => setTab("liked")}>
+            ❤️{liked.length > 0 && <sup style={{ background: "#ff4b4b", color: "#fff", borderRadius: 99, padding: "1px 5px", fontSize: 10, marginLeft: 2 }}>{liked.length}</sup>}
+          </TBtn>
+          <button onClick={onReset} style={{ background: "none", border: "1px solid #2a2a2a", color: "#555", borderRadius: 20, padding: "4px 10px", fontSize: 12, cursor: "pointer" }}>⚙️</button>
+        </div>
+      </div>
+
+      {tab === "liked" ? <LikedTab liked={liked} /> : (
+        <>
+          <div style={{ width: "100%", padding: "10px 20px 0", position: "relative", height: 510 }}>
+            {deck.length > 1 && (
+              <div style={{ position: "absolute", left: 30, right: 30, top: 20, height: 480, borderRadius: 22, background: "#1a1a1a", transform: "scale(0.95)", zIndex: 0 }} />
+            )}
+            {deck.length === 0 ? (
+              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+                <div style={{ fontSize: 48 }}>🏁</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", marginTop: 10 }}>Deck durch!</div>
+                <button onClick={onReset} style={{ marginTop: 20, background: "linear-gradient(90deg,#ff4b4b,#ff9b00)", border: "none", borderRadius: 40, padding: "11px 24px", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Neue Suche 🔄</button>
+              </div>
+            ) : (
+              <div
+                style={{
+                  position: "absolute", left: 20, right: 20, top: 8, height: 490,
+                  borderRadius: 22, background: "#1c1c1e",
+                  boxShadow: "0 20px 60px rgba(0,0,0,0.7)",
+                  overflow: "hidden", cursor: isDragging ? "grabbing" : "grab",
+                  zIndex: 2, touchAction: "none",
+                  ...cardStyle(),
+                }}
+                onPointerDown={onDown}
+                onPointerMove={onMove}
+                onPointerUp={onUp}
+                onPointerLeave={onUp}
+              >
+                <CarCard car={top} swipeDir={swipeDir} dragX={dragX} />
+              </div>
+            )}
+          </div>
+
+          {deck.length > 0 && (
+            <div style={{ display: "flex", gap: 24, marginTop: 18 }}>
+              <ABtn color="#f87171" bg="rgba(248,113,113,0.1)" onClick={() => triggerSwipe("left")}>✕</ABtn>
+              <ABtn color="#4ade80" bg="rgba(74,222,128,0.1)" onClick={() => triggerSwipe("right")}>♥</ABtn>
+            </div>
+          )}
+        </>
+      )}
+
+      {showMatch && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.8)", backdropFilter: "blur(6px)" }}>
+          <div style={{ background: "#1a1a1a", borderRadius: 24, padding: "32px 28px", textAlign: "center", border: "1px solid #2a2a2a", animation: "pop 0.2s ease" }}>
+            <div style={{ fontSize: 44 }}>🔥</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginTop: 8 }}>Geliked!</div>
+            <div style={{ fontSize: 14, color: "#777", marginTop: 4 }}>{showMatch.make} {showMatch.model}</div>
+          </div>
+        </div>
+      )}
+      <style>{`@keyframes pop { from { transform: scale(0.8); opacity: 0 } to { transform: scale(1); opacity: 1 } }`}</style>
+    </div>
+  );
+}
+
+function TBtn({ active, onClick, children }) {
+  return (
+    <button onClick={onClick} style={{
+      background: active ? "rgba(255,75,75,0.15)" : "transparent",
+      border: `1px solid ${active ? "rgba(255,75,75,0.4)" : "#2a2a2a"}`,
+      color: active ? "#ff4b4b" : "#555",
+      borderRadius: 20, padding: "5px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer",
+    }}>{children}</button>
+  );
+}
+
+function ABtn({ color, bg, onClick, children }) {
+  return (
+    <button onClick={onClick} style={{
+      width: 60, height: 60, borderRadius: "50%",
+      border: `2px solid ${color}`, background: bg, color,
+      fontSize: 24, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+    }}>{children}</button>
+  );
+}
+
+function AutoMatch() {
+  const [screen, setScreen] = React.useState("filter");
+  const [cars, setCars] = React.useState([]);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState(null);
+
+  const handleSearch = async (filters) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      params.set('customerId', '');
+      params.set('pageNumber', '1');
+      params.set('pageSize', '25');
+      params.set('sortField', 'RELEVANCE');
+      params.set('sortOrder', 'DESCENDING');
+
+      if (filters.priceMin) params.set('price.min', filters.priceMin);
+      if (filters.priceMax) params.set('price.max', filters.priceMax);
+      if (filters.kmMax)    params.set('mileage.max', filters.kmMax);
+      if (filters.yearMin)  params.set('firstRegistration.min', `${filters.yearMin}-01`);
+      if (filters.fuel)     params.set('fuelTypes', filters.fuel);
+      if (filters.gearbox)  params.set('transmissions', filters.gearbox);
+      if (filters.plz) { 
+        params.set('localArea.zipCode', filters.plz); 
+        params.set('localArea.radius', filters.radius || '50'); 
+      }
+
+      const mobileApiUrl = `https://m.mobile.de/svc/s/listings?${params.toString()}`;
+      const scraperUrl = `https://api.scraperapi.com?api_key=4a13f39e7abb638bb4ccadb182026345&url=${encodeURIComponent(mobileApiUrl)}&country_code=de`;
+
+      const res = await fetch(scraperUrl);
+      if (!res.ok) throw new Error("Verbindung zur Schnittstelle fehlgeschlagen.");
+      
+      const data = await res.json();
+      const listings = data?.listings || [];
+
+      if (!listings.length) {
+        setError("Keine Treffer gefunden. Passe deine Filter an.");
+        setLoading(false);
+        return;
+      }
+
+      const normalized = listings.map(ad => {
+        return {
+          id: ad.id,
+          make: ad.make || '',
+          model: ad.model || '',
+          price: ad.price?.amount || null,
+          mileage: ad.mileage || null,
+          power_kw: ad.powerKw || null,
+          fuel: ad.fuelType || null,
+          gearbox: ad.transmission || null,
+          firstRegistration: ad.firstRegistration || null,
+          tuev: ad.hu || null,
+          city: ad.location || null,
+          image: ad.images?.[0]?.uri ? ad.images[0].uri.replace('{size}', '400x300') : null,
+          url: ad.id ? `https://suchen.mobile.de/fahrzeuge/details.html?id=${ad.id}` : null
+        };
+      });
+
+      setCars(normalized);
+      setScreen("swipe");
+    } catch (e) {
+      setError("Die Daten konnten nicht geladen werden. Bitte kontrolliere deine Filter oder versuche es noch einmal.");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{
+      minHeight: "100vh", background: "#0d0d0d",
+      fontFamily: "'DM Sans',sans-serif",
+      display: "flex", flexDirection: "column", alignItems: "center",
+      overflowX: "hidden", userSelect: "none", paddingBottom: 20,
+    }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;800&display=swap');`}</style>
+      {screen === "filter"
+        ? <FilterScreen onSearch={handleSearch} loading={loading} error={error} />
+        : <SwipeScreen cars={cars} onReset={() => { setScreen("filter"); setCars([]); }} />
+      }
+    </div>
+  );
+}
