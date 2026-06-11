@@ -12,14 +12,21 @@
     <div id="root"></div>
 
     <script type="text/babel">
-      // Macht die Vercel-Umgebungsvariable im Browser verfügbar
-      window.VITE_BACKEND_URL = "%VITE_BACKEND_URL%";
+      // Deine feste Render-Backend-URL für die App
+      window.VITE_BACKEND_URL = "https://my-automatch-backend.onrender.com";
     </script>
 
     <script type="text/babel" src="App.jsx"></script>
     <script type="text/babel">
-      const root = ReactDOM.createRoot(document.getElementById('root'));
-      root.render(React.createElement(AutoMatch));
+      // Startet die App, sobald Babel das Skript übersetzt hat
+      setTimeout(function() {
+        if (typeof AutoMatch !== 'undefined') {
+          var root = ReactDOM.createRoot(document.getElementById('root'));
+          root.render(React.createElement(AutoMatch));
+        } else {
+          console.error("AutoMatch-Komponente wurde noch nicht im System gefunden.");
+        }
+      }, 300);
     </script>
   </body>
 </html>
