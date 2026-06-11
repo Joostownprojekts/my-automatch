@@ -30,7 +30,7 @@ function FilterScreen({ onSearch, loading, error }) {
           <span style={{ color: "#fff" }}>Auto</span>
           <span style={{ background: "linear-gradient(90deg,#ff4b4b,#ff9b00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Match</span>
         </div>
-        <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>Mobile.de JSON-API Engine via ScraperAPI 🛡️⚡</div>
+        <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>Mobile.de Stealth HTML Engine via ScraperAPI 🛡️⚡</div>
       </div>
 
       <Sec title="⛽ Antrieb">
@@ -107,7 +107,7 @@ function CarCard({ car, swipeDir, dragX }) {
         {car.image ? (
           <img src={car.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }} />
         ) : (
-          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 56, color: "#2a2a2a" }}>🚗</div>
+          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyY: "center", fontSize: 56, color: "#2a2a2a", textAlign: "center", paddingTop: 80 }}>🚗</div>
         )}
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 45%, #1c1c1e 100%)" }} />
 
@@ -365,35 +365,57 @@ function AutoMatch() {
     setError(null);
     try {
       const p = new URLSearchParams();
-      p.set('customerType', 'PRIVATE');
-      p.set('pageNumber', '1');
-      p.set('pageSize', '25');
-      p.set('sortBy', 'RELEVANCE');
-      p.set('sortOrder', 'DESCENDING');
+      p.set('isSearchRequest', 'true');
+      p.set('sb', 'rel');
+      p.set('vc', 'Car');
+      p.set('damUnrep', 'false');
       
       if (filters.priceMin) p.set('minPrice', filters.priceMin);
       if (filters.priceMax) p.set('maxPrice', filters.priceMax);
       if (filters.kmMax)    p.set('maxMileage', filters.kmMax);
-      if (filters.yearMin)  p.set('minFirstRegistration', `${filters.yearMin}-01`);
-      if (filters.fuel)     p.set('fuelTypes', filters.fuel);
-      if (filters.gearbox)  p.set('transmissions', filters.gearbox);
+      if (filters.yearMin)  p.set('minFirstRegistrationDate', `${filters.yearMin}-01`);
+      if (filters.fuel)     p.set('fuel', filters.fuel);
+      if (filters.gearbox)  p.set('gearbox', filters.gearbox);
       if (filters.plz) {
         p.set('zipcode', filters.plz);
-        p.set('radius', filters.radius || '50');
+        p.set('ambitDistance', filters.radius || '50');
       }
 
-      // STRATEGIEWECHSEL: Wir nutzen die direkte, interne JSON-API von mobile.de
-      const mobileApiUrl = `https://m.mobile.de/svc/api/search?${p.toString()}`;
-      const scraperUrl = `https://api.scraperapi.com?api_key=4a13f39e7abb638bb4ccadb182026345&url=${encodeURIComponent(mobileApiUrl)}&country_code=de&premium=true`;
-
-      const res = await fetch(scraperUrl);
-      if (!res.ok) throw new Error("Netzwerk-Verbindung via Proxy unterbrochen.");
+      const mobileWebUrl = `https://suchen.mobile.de/fahrzeuge/search.html?${p.toString()}`;
       
-      const jsonState = await res.json();
+      // OPTIMIERUNG: `keep_headers=true` zwingt ScraperAPI, unsere Browser-Header mitzusenden.
+      const scraperUrl = `https://api.scraperapi.com?api_key=4a13f39e7abb638bb4ccadb182026345&url=${encodeURIComponent(mobileWebUrl)}&country_code=de&premium=true&keep_headers=true`;
+
+      // Stealth-Header mitsenden, damit mobile.de uns sofort als echten Browser akzeptiert
+      const res = await fetch(scraperUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+          "Accept-Language": "de,en-US;q=0.7,en;q=0.3"
+        }
+      });
+      
+      if (!res.ok) throw new Error(`HTTP Fehler: ${res.status}`);
+      
+      const htmlText = await res.text();
+
+      let jsonState = null;
+      const matchNextData = htmlText.match(/<script[^>]*id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+      
+      if (matchNextData && matchNextData[1]) {
+        const fullParsed = JSON.parse(matchNextData[1].trim());
+        jsonState = fullParsed?.props?.pageProps?.searchResult || fullParsed?.props?.pageProps;
+      } else {
+        const matchInitialState = htmlText.match(/window\.__INITIAL_STATE__\s*=\s*(\{.*?\});<\/script>/);
+        if (matchInitialState && matchInitialState[1]) {
+          jsonState = JSON.parse(matchInitialState[1]);
+        }
+      }
+
       const listings = jsonState?.listings || jsonState?.results || [];
 
       if (!listings.length) {
-        setError("Keine Treffer erhalten. Bitte passe deine Filtereinstellungen an.");
+        setError("Keine Treffer erhalten oder temporär blockiert. Bitte Passe die Filter an.");
         setLoading(false);
         return;
       }
@@ -418,7 +440,7 @@ function AutoMatch() {
       setCars(normalized);
       setScreen("swipe");
     } catch (e) {
-      setError("Fehler beim Abrufen der API-Daten. Versuche es bitte gleich noch einmal.");
+      setError("Verbindung blockiert oder verlangsamt. Versuche es bitte noch einmal.");
     }
     setLoading(false);
   };
