@@ -386,7 +386,8 @@ function AutoMatch() {
       }
 
       const mobileApiUrl = `https://m.mobile.de/svc/s/listings?${params.toString()}`;
-      const scraperUrl = `https://api.scraperapi.com?api_key=4a13f39e7abb638bb4ccadb182026345&url=${encodeURIComponent(mobileApiUrl)}&country_code=de`;
+      // Hier ist dein ScraperAPI-Aufruf inklusive render=true und premium=true konfiguriert
+      const scraperUrl = `https://api.scraperapi.com?api_key=4a13f39e7abb638bb4ccadb182026345&url=${encodeURIComponent(mobileApiUrl)}&country_code=de&render=true&premium=true`;
 
       const res = await fetch(scraperUrl);
       if (!res.ok) throw new Error("Verbindung zur Schnittstelle fehlgeschlagen.");
