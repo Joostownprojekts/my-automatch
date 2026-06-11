@@ -1,4 +1,4 @@
-// App.jsx - Blockadefreie Live-Variante via RSS-to-JSON Feed
+// App.jsx - Robustes HTML-Scraping über ScraperAPI (Filtert JSON aus dem Quelltext)
 
 const fmtPrice = (p) => Number(p).toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const fmtKm = (k) => Number(k).toLocaleString("de-DE") + " km";
@@ -32,7 +32,7 @@ function FilterScreen({ onSearch, loading, error }) {
           <span style={{ color: "#fff" }}>Auto</span>
           <span style={{ background: "linear-gradient(90deg,#ff4b4b,#ff9b00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Match</span>
         </div>
-        <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>Mobile.de RSS Feed Stream Tunnel 🛡️⚡</div>
+        <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>Mobile.de HTML Scraping Engine via ScraperAPI 🛡️⚡</div>
       </div>
 
       <Sec title="⛽ Antrieb">
@@ -102,6 +102,7 @@ function Sec({ title, children }) {
 }
 
 function CarCard({ car, swipeDir, dragX }) {
+  const ps = kwToPs(car.power_kw);
   return (
     <>
       <div style={{ position: "relative", height: 265, overflow: "hidden", background: "#111" }}>
@@ -127,16 +128,18 @@ function CarCard({ car, swipeDir, dragX }) {
 
       <div style={{ padding: "12px 16px" }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 6 }}>
-          <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", whiteSpace: "normal" }}>
-            {car.title}
+          <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {car.make} {car.model}
+            <span style={{ fontSize: 13, color: "#666", fontWeight: 400, marginLeft: 6 }}>{fmtYear(car.firstRegistration)}</span>
           </div>
         </div>
 
         <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
           {car.mileage && <Chip icon="🛣️" val={fmtKm(car.mileage)} />}
-          {car.firstRegistration && <Chip icon="📅" val={`EZ ${car.firstRegistration}`} />}
+          {ps && <Chip icon="⚡" val={`${ps} PS`} />}
           {car.fuel && <Chip icon="⛽" val={fmtFuel(car.fuel)} />}
           {car.gearbox && <Chip icon="🔧" val={fmtGear(car.gearbox)} />}
+          {car.city && <Chip icon="📍" val={car.city} />}
         </div>
 
         {car.url && (
@@ -193,8 +196,8 @@ function LikedTab({ liked }) {
             : <div style={{ width: 88, height: 70, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0 }}>🚗</div>
           }
           <div style={{ padding: "10px 10px 10px 0", flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {car.title}
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {car.make} {car.model} <span style={{ color: "#555", fontWeight: 400, fontSize: 11 }}>{fmtYear(car.firstRegistration)}</span>
             </div>
             <div style={{ fontSize: 15, fontWeight: 800, color: "#ff9b00", marginTop: 1 }}>
               {car.price ? fmtPrice(car.price) : "–"}
@@ -323,7 +326,7 @@ function SwipeScreen({ cars, onReset }) {
           <div style={{ background: "#1a1a1a", borderRadius: 24, padding: "32px 28px", textAlign: "center", border: "1px solid #2a2a2a", animation: "pop 0.2s ease" }}>
             <div style={{ fontSize: 44 }}>🔥</div>
             <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginTop: 8 }}>Geliked!</div>
-            <div style={{ fontSize: 14, color: "#777", marginTop: 4 }}>{showMatch.title}</div>
+            <div style={{ fontSize: 14, color: "#777", marginTop: 4 }}>{showMatch.make} {showMatch.model}</div>
           </div>
         </div>
       )}
@@ -364,13 +367,15 @@ function AutoMatch() {
     setError(null);
     try {
       const p = new URLSearchParams();
+      p.set('isSearchRequest', 'true');
+      p.set('sb', 'rel');
       p.set('vc', 'Car');
       p.set('damUnrep', 'false');
       
       if (filters.priceMin) p.set('minPrice', filters.priceMin);
       if (filters.priceMax) p.set('maxPrice', filters.priceMax);
       if (filters.kmMax)    p.set('maxMileage', filters.kmMax);
-      if (filters.yearMin)  p.set('minFirstRegistrationDate', filters.yearMin);
+      if (filters.yearMin)  p.set('minFirstRegistrationDate', `${filters.yearMin}-01`);
       if (filters.fuel)     p.set('fuel', filters.fuel);
       if (filters.gearbox)  p.set('gearbox', filters.gearbox);
       if (filters.plz) {
@@ -378,65 +383,63 @@ function AutoMatch() {
         p.set('ambitDistance', filters.radius || '50');
       }
 
-      // Der offizielle, unblockierte RSS-Feed von mobile.de
-      const targetRssUrl = `https://suchen.mobile.de/fahrzeuge/search.html?${p.toString()}&_art=rss`;
+      // Wir rufen die echte Desktop-Website auf, da dort die Daten eingebettet sind
+      const mobileWebUrl = `https://suchen.mobile.de/fahrzeuge/search.html?${p.toString()}`;
       
-      // Freie Open-Source Konvertierung von RSS zu sauberem JSON ohne API-Key Limitierungen
-      const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(targetRssUrl)}`;
+      // Nutzt deinen ScraperAPI Key mit Premium-Residential-Proxies
+      const scraperUrl = `https://api.scraperapi.com?api_key=4a13f39e7abb638bb4ccadb182026345&url=${encodeURIComponent(mobileWebUrl)}&country_code=de&premium=true`;
 
-      const res = await fetch(apiUrl);
-      if (!res.ok) throw new Error("Verbindung zum Datenstrom fehlgeschlagen.");
+      const res = await fetch(scraperUrl);
+      if (!res.ok) throw new Error("Verbindung zum Server fehlgeschlagen.");
       
-      const data = await res.json();
-      const items = data?.items || [];
+      const htmlText = await res.text();
 
-      if (!items.length) {
-        setError("Keine Treffer gefunden. Passe deine Filter an.");
+      // Wir extrahieren das eingebettete JSON-Datenobjekt (State) aus dem HTML-Quelltext
+      let jsonState = null;
+      const matchNextData = htmlText.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
+      
+      if (matchNextData && matchNextData[1]) {
+        const fullParsed = JSON.parse(matchNextData[1]);
+        jsonState = fullParsed?.props?.pageProps?.searchResult || fullParsed?.props?.pageProps;
+      } else {
+        // Fallback falls Mobile.de den veralteten INITIAL_STATE nutzt
+        const matchInitialState = htmlText.match(/window\.__INITIAL_STATE__\s*=\s*(\{.*?\});<\/script>/);
+        if (matchInitialState && matchInitialState[1]) {
+          jsonState = JSON.parse(matchInitialState[1]);
+        }
+      }
+
+      // Auslesen der Artikelliste (Listings) aus dem extrahierten JSON
+      const listings = jsonState?.listings || jsonState?.results || [];
+
+      if (!listings.length) {
+        setError("Keine Treffer erhalten. Bitte passe deine Filtereinstellungen an.");
         setLoading(false);
         return;
       }
 
-      const normalized = items.map(item => {
-        // Extrahiere das Bild aus dem RSS-Inhalt
-        let imgUrl = null;
-        if (item.description) {
-          const m = item.description.match(/src="([^"]+)"/);
-          if (m) imgUrl = m[1];
-        }
-
-        // Parse wichtige Kenndaten aus dem Beschreibungstext des Feeds
-        let price = null;
-        let mileage = null;
-        let firstRegistration = null;
-        
-        if (item.description) {
-          const pMatch = item.description.match(/EUR\s([\d.]+)/);
-          if (pMatch) price = parseInt(pMatch[1].replace(/\./g, ''));
-
-          const kmMatch = item.description.match(/([\d.]+)\skm/);
-          if (kmMatch) mileage = parseInt(kmMatch[1].replace(/\./g, ''));
-
-          const ezMatch = item.description.match(/EZ\s(\d{2}\/\d{4})/);
-          if (ezMatch) firstRegistration = ezMatch[1];
-        }
-
+      // Daten normalisieren für die UI-Karten
+      const normalized = listings.map((ad, idx) => {
         return {
-          id: item.guid || Math.random().toString(),
-          title: item.title || 'Unbekanntes Fahrzeug',
-          price: price,
-          mileage: mileage,
-          firstRegistration: firstRegistration,
-          fuel: filters.fuel || null,
-          gearbox: filters.gearbox || null,
-          image: imgUrl,
-          url: item.link || null
+          id: ad.id || String(idx),
+          make: ad.make || ad.title?.split(' ')?.[0] || 'Auto',
+          model: ad.model || ad.title?.split(' ')?.slice(1)?.join(' ') || '',
+          price: ad.price?.amount || ad.price || null,
+          mileage: ad.mileage || null,
+          power_kw: ad.powerKw || ad.power || null,
+          fuel: ad.fuelType || ad.fuel || null,
+          gearbox: ad.transmission || ad.gearbox || null,
+          firstRegistration: ad.firstRegistration || null,
+          city: ad.location || null,
+          image: ad.images?.[0]?.uri ? ad.images[0].uri.replace('{size}', '400x300') : (ad.imageUrl || null),
+          url: ad.id ? `https://suchen.mobile.de/fahrzeuge/details.html?id=${ad.id}` : null
         };
       });
 
       setCars(normalized);
       setScreen("swipe");
     } catch (e) {
-      setError("Fehler beim Abrufen der Inserate. Bitte versuche es gleich noch einmal.");
+      setError("Fehler beim Verarbeiten der Fahrzeugdaten. Versuche es bitte noch einmal.");
     }
     setLoading(false);
   };
