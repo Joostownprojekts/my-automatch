@@ -1,11 +1,6 @@
 {
   "version": 2,
-  "regions": ["fra1"],
   "builds": [
-    {
-      "src": "api/search.js",
-      "use": "@vercel/node"
-    },
     {
       "src": "index.html",
       "use": "@vercel/static"
@@ -13,13 +8,13 @@
     {
       "src": "App.jsx",
       "use": "@vercel/static"
+    },
+    {
+      "src": "styles.css",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
-    {
-      "src": "/api/search",
-      "dest": "api/search.js"
-    },
     {
       "src": "/(.*)",
       "dest": "/$1"
