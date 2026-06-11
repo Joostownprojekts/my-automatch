@@ -1,4 +1,4 @@
-// App.jsx - Lokale Direkt-Variante über AllOrigins CORS-Proxy (Kein eigenes Backend nötig!)
+// App.jsx - Getunnelte Variante über ScraperAPI
 
 const fmtPrice = (p) => Number(p).toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const fmtKm = (k) => Number(k).toLocaleString("de-DE") + " km";
@@ -32,7 +32,7 @@ function FilterScreen({ onSearch, loading, error }) {
           <span style={{ color: "#fff" }}>Auto</span>
           <span style={{ background: "linear-gradient(90deg,#ff4b4b,#ff9b00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Match</span>
         </div>
-        <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>Direct Core Connection 📱⚡</div>
+        <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>ScraperAPI Secure Tunnel 🛡️🚀</div>
       </div>
 
       <Sec title="⛽ Antrieb">
@@ -86,7 +86,7 @@ function FilterScreen({ onSearch, loading, error }) {
           cursor: loading ? "not-allowed" : "pointer", marginTop: 4,
         }}
       >
-        {loading ? "Verbinde mit mobile.de…" : "🔥 Los swipe'n"}
+        {loading ? "Tunnel wird aufgebaut…" : "🔥 Los swipe'n"}
       </button>
     </div>
   );
@@ -174,7 +174,6 @@ function Stamp({ color, side, opacity, children }) {
   );
 }
 
-// Hilfskomponente für Daten-Chips
 function Chip({ icon, val }) {
   return (
     <span style={{ fontSize: 12, color: "#bbb", display: "flex", alignItems: "center", gap: 3 }}>
@@ -386,18 +385,17 @@ function AutoMatch() {
 
       const mobileUrl = `https://suchen.mobile.de/fahrzeuge/search.html?${params.toString()}`;
       
-      // Nutzt die freie AllOrigins CORS-Bridge. Die Anfrage verhält sich so, als käme sie direkt von deinem Smartphone-Browser.
-      const bridgeUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(mobileUrl)}`;
+      // Nutzt deinen persönlichen API-Key und erzwingt deutsche Privat-IPs via ScraperAPI
+      const scraperUrl = `https://api.scraperapi.com?api_key=4a13f39e7abb638bb4ccadb182026345&url=${encodeURIComponent(mobileUrl)}&country_code=de`;
 
-      const res = await fetch(bridgeUrl);
-      if (!res.ok) throw new Error("Netzwerk-Brücke blockiert.");
+      const res = await fetch(scraperUrl);
+      if (!res.ok) throw new Error("Verbindung zum sicheren Proxy-Server fehlgeschlagen.");
       
-      const bridgeData = await res.json();
-      const html = bridgeData.contents;
+      const html = await res.text();
 
       const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
       if (!match) {
-        throw new Error("Antispam aktiv. Versuche es gleich noch einmal oder ändere die Filter leicht.");
+        throw new Error("Proxy-Limit erreicht oder mobile.de hat ungewöhnlich reagiert. Versuche es gleich noch einmal.");
       }
 
       const nextData = JSON.parse(match[1]);
