@@ -30,7 +30,7 @@ function FilterScreen({ onSearch, loading, error }) {
           <span style={{ color: "#fff" }}>Auto</span>
           <span style={{ background: "linear-gradient(90deg,#ff4b4b,#ff9b00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Match</span>
         </div>
-        <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>Mobile.de HTML Scraping Engine via ScraperAPI 🛡️⚡</div>
+        <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>Mobile.de JSON-API Engine via ScraperAPI 🛡️⚡</div>
       </div>
 
       <Sec title="⛽ Antrieb">
@@ -365,46 +365,31 @@ function AutoMatch() {
     setError(null);
     try {
       const p = new URLSearchParams();
-      p.set('isSearchRequest', 'true');
-      p.set('sb', 'rel');
-      p.set('vc', 'Car');
-      p.set('damUnrep', 'false');
+      p.set('customerType', 'PRIVATE');
+      p.set('pageNumber', '1');
+      p.set('pageSize', '25');
+      p.set('sortBy', 'RELEVANCE');
+      p.set('sortOrder', 'DESCENDING');
       
       if (filters.priceMin) p.set('minPrice', filters.priceMin);
       if (filters.priceMax) p.set('maxPrice', filters.priceMax);
       if (filters.kmMax)    p.set('maxMileage', filters.kmMax);
-      if (filters.yearMin)  p.set('minFirstRegistrationDate', `${filters.yearMin}-01`);
-      if (filters.fuel)     p.set('fuel', filters.fuel);
-      if (filters.gearbox)  p.set('gearbox', filters.gearbox);
+      if (filters.yearMin)  p.set('minFirstRegistration', `${filters.yearMin}-01`);
+      if (filters.fuel)     p.set('fuelTypes', filters.fuel);
+      if (filters.gearbox)  p.set('transmissions', filters.gearbox);
       if (filters.plz) {
         p.set('zipcode', filters.plz);
-        p.set('ambitDistance', filters.radius || '50');
+        p.set('radius', filters.radius || '50');
       }
 
-      const mobileWebUrl = `https://suchen.mobile.de/fahrzeuge/search.html?${p.toString()}`;
-      
-      // OPTIMIERUNG: country_code=de & premium=true hängen nun sauber am ScraperAPI-Endpunkt.
-      // render=true wurde entfernt, damit ScraperAPI nicht in den Javascript-Timeout läuft.
-      const scraperUrl = `https://api.scraperapi.com?api_key=4a13f39e7abb638bb4ccadb182026345&url=${encodeURIComponent(mobileWebUrl)}&country_code=de&premium=true`;
+      // STRATEGIEWECHSEL: Wir nutzen die direkte, interne JSON-API von mobile.de
+      const mobileApiUrl = `https://m.mobile.de/svc/api/search?${p.toString()}`;
+      const scraperUrl = `https://api.scraperapi.com?api_key=4a13f39e7abb638bb4ccadb182026345&url=${encodeURIComponent(mobileApiUrl)}&country_code=de&premium=true`;
 
       const res = await fetch(scraperUrl);
-      if (!res.ok) throw new Error("Proxy-Anfrage fehlgeschlagen oder Timeout.");
+      if (!res.ok) throw new Error("Netzwerk-Verbindung via Proxy unterbrochen.");
       
-      const htmlText = await res.text();
-
-      let jsonState = null;
-      const matchNextData = htmlText.match(/<script[^>]*id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
-      
-      if (matchNextData && matchNextData[1]) {
-        const fullParsed = JSON.parse(matchNextData[1].trim());
-        jsonState = fullParsed?.props?.pageProps?.searchResult || fullParsed?.props?.pageProps;
-      } else {
-        const matchInitialState = htmlText.match(/window\.__INITIAL_STATE__\s*=\s*(\{.*?\});<\/script>/);
-        if (matchInitialState && matchInitialState[1]) {
-          jsonState = JSON.parse(matchInitialState[1]);
-        }
-      }
-
+      const jsonState = await res.json();
       const listings = jsonState?.listings || jsonState?.results || [];
 
       if (!listings.length) {
@@ -433,7 +418,7 @@ function AutoMatch() {
       setCars(normalized);
       setScreen("swipe");
     } catch (e) {
-      setError("Fehler beim Verarbeiten der Fahrzeugdaten. Versuche es bitte noch einmal.");
+      setError("Fehler beim Abrufen der API-Daten. Versuche es bitte gleich noch einmal.");
     }
     setLoading(false);
   };
