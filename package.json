@@ -1,17 +1,11 @@
 {
-  "name": "automatch",
+  "name": "automatch-frontend",
   "version": "1.0.0",
-  "description": "Tinder für Gebrauchtwagen — powered by mobile.de",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
+  "description": "AutoMatch - Tinder für Autos",
+  "main": "index.html",
+  "engines": {
+    "node": ">=20.x"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "cors": "^2.8.6",
-    "express": "^5.2.1",
-    "node-fetch": "^2.7.0"
-  }
+  "dependencies": {},
+  "devDependencies": {}
 }
