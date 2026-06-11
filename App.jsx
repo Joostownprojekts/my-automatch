@@ -385,7 +385,7 @@ function AutoMatch() {
       const scraperUrl = `https://api.scraperapi.com?api_key=4a13f39e7abb638bb4ccadb182026345&url=${encodeURIComponent(mobileWebUrl)}&country_code=de&premium=true&render=true`;
 
       const res = await fetch(scraperUrl);
-      if (!res.ok) throw new Error("Verbindung zum Server fehlgeschlagen.");
+      if (!res.ok) throw new Error("Verbindung zum Server failed.");
       
       const htmlText = await res.text();
 
@@ -396,4 +396,57 @@ function AutoMatch() {
         const fullParsed = JSON.parse(matchNextData[1].trim());
         jsonState = fullParsed?.props?.pageProps?.searchResult || fullParsed?.props?.pageProps;
       } else {
-        const matchInitialState = htmlText.match
+        const matchInitialState = htmlText.match(/window\.__INITIAL_STATE__\s*=\s*(\{.*?\});<\/script>/);
+        if (matchInitialState && matchInitialState[1]) {
+          jsonState = JSON.parse(matchInitialState[1]);
+        }
+      }
+
+      const listings = jsonState?.listings || jsonState?.results || [];
+
+      if (!listings.length) {
+        setError("Keine Treffer erhalten. Bitte passe deine Filtereinstellungen an.");
+        setLoading(false);
+        return;
+      }
+
+      const normalized = listings.map((ad, idx) => {
+        return {
+          id: ad.id || String(idx),
+          make: ad.make || ad.title?.split(' ')?.[0] || 'Auto',
+          model: ad.model || ad.title?.split(' ')?.slice(1)?.join(' ') || '',
+          price: ad.price?.amount || ad.price || null,
+          mileage: ad.mileage || null,
+          power_kw: ad.powerKw || ad.power || null,
+          fuel: ad.fuelType || ad.fuel || null,
+          gearbox: ad.transmission || ad.gearbox || null,
+          firstRegistration: ad.firstRegistration || null,
+          city: ad.location || null,
+          image: ad.images?.[0]?.uri ? ad.images[0].uri.replace('{size}', '400x300') : (ad.imageUrl || null),
+          url: ad.id ? `https://suchen.mobile.de/fahrzeuge/details.html?id=${ad.id}` : null
+        };
+      });
+
+      setCars(normalized);
+      setScreen("swipe");
+    } catch (e) {
+      setError("Fehler beim Verarbeiten der Fahrzeugdaten. Versuche es bitte noch einmal.");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{
+      minHeight: "100vh", background: "#0d0d0d",
+      fontFamily: "'DM Sans',sans-serif",
+      display: "flex", flexDirection: "column", alignItems: "center",
+      overflowX: "hidden", userSelect: "none", paddingBottom: 20,
+    }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;800&display=swap');`}</style>
+      {screen === "filter"
+        ? <FilterScreen onSearch={handleSearch} loading={loading} error={error} />
+        : <SwipeScreen cars={cars} onReset={() => { setScreen("filter"); setCars([]); }} />
+      }
+    </div>
+  );
+}
