@@ -12,19 +12,16 @@
     <div id="root"></div>
 
     <script type="text/babel">
-      // Deine feste Render-Backend-URL für die App
-      window.VITE_BACKEND_URL = "https://my-automatch-backend.onrender.com";
+      // Nutzt die eigene Domain für API-Anfragen
+      window.VITE_BACKEND_URL = window.location.origin;
     </script>
 
     <script type="text/babel" src="App.jsx"></script>
     <script type="text/babel">
-      // Startet die App, sobald Babel das Skript übersetzt hat
       setTimeout(function() {
         if (typeof AutoMatch !== 'undefined') {
           var root = ReactDOM.createRoot(document.getElementById('root'));
           root.render(React.createElement(AutoMatch));
-        } else {
-          console.error("AutoMatch-Komponente wurde noch nicht im System gefunden.");
         }
       }, 300);
     </script>
