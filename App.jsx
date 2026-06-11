@@ -1,12 +1,9 @@
 // ─── Cloud Config ────────────────────────────────────────────────────────────
 function getBackendUrl() {
   if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-    return "http://localhost:3001";
+    return "http://localhost:3000"; // Lokale Vercel-Dev Umgebung
   }
-  if (window.VITE_BACKEND_URL) {
-    return window.VITE_BACKEND_URL;
-  }
-  return "https://my-automatch-backend.onrender.com";
+  return window.VITE_BACKEND_URL || "";
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -43,7 +40,7 @@ function FilterScreen({ onSearch, loading, error }) {
           <span style={{ color: "#fff" }}>Auto</span>
           <span style={{ background: "linear-gradient(90deg,#ff4b4b,#ff9b00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Match</span>
         </div>
-        <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>Handy & Cloud Ready Edition 📱☁️</div>
+        <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>Serverless Vercel Edition 📱⚡</div>
       </div>
 
       <Sec title="⛽ Antrieb">
@@ -383,6 +380,7 @@ function AutoMatch() {
       Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
 
       const backendUrl = getBackendUrl();
+      // Ruft die Serverless Function auf Vercel auf
       const res = await fetch(backendUrl + "/api/search?" + params.toString());
       if (!res.ok) throw new Error("Server Fehler " + res.status);
       const data = await res.json();
