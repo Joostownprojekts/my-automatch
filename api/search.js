@@ -11,7 +11,7 @@ const MOBILE_HEADERS = {
 };
 
 export default async function handler(req, res) {
-  // CORS-Header einrichten, damit dein Vercel-Frontend zugreifen darf
+  // CORS-Header einrichten
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
@@ -41,11 +41,10 @@ export default async function handler(req, res) {
       params.set('zipr', q.radius || '50'); 
     }
 
-    // WHATWG URL API nutzen, um veraltete url.parse() Warnungen in Vercel zu verhindern
+    // Nutzen der modernen WHATWG URL API um Warnungen zu verhindern
     const targetUrl = new URL('https://suchen.mobile.de/fahrzeuge/search.html');
     targetUrl.search = params.toString();
     
-    // Anfrage an mobile.de senden
     const response = await fetch(targetUrl.href, { headers: MOBILE_HEADERS });
     const html = await response.text();
 
