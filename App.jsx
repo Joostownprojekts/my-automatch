@@ -1,8 +1,8 @@
-import { useState, useRef } from "react";
-
 // ─── Cloud Config ────────────────────────────────────────────────────────────
 // Erkennt automatisch die Backend-URL in der Cloud. Lokal wird localhost genutzt.
-const PROXY = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
+const PROXY = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" 
+  ? "http://localhost:3001" 
+  : "https://dein-backend.onrender.com"; // Hinweis: Falls du die VITE_BACKEND_URL nutzt, liest die index.html sie aus.
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const fmtPrice = (p) => Number(p).toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
@@ -18,7 +18,7 @@ const fmtGear = (g) => ({ MANUAL_GEAR: "Schaltung", AUTOMATIC_GEAR: "Automatik",
 
 // ─── Filter Screen ────────────────────────────────────────────────────────────
 function FilterScreen({ onSearch, loading, error }) {
-  const [f, setF] = useState({
+  const [f, setF] = React.useState({
     priceMin: "", priceMax: "", kmMax: "", yearMin: "",
     fuel: "", gearbox: "", plz: "", radius: "50",
   });
@@ -219,16 +219,16 @@ function LikedTab({ liked }) {
 
 // ─── Swipe Screen ─────────────────────────────────────────────────────────────
 function SwipeScreen({ cars, onReset }) {
-  const [deck, setDeck] = useState([...cars].reverse());
-  const [liked, setLiked] = useState([]);
-  const [disliked, setDisliked] = useState([]);
-  const [dragX, setDragX] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [swipeDir, setSwipeDir] = useState(null);
-  const [animOut, setAnimOut] = useState(null);
-  const [showMatch, setShowMatch] = useState(null);
-  const [tab, setTab] = useState("swipe");
-  const dragStart = useRef(null);
+  const [deck, setDeck] = React.useState([...cars].reverse());
+  const [liked, setLiked] = React.useState([]);
+  const [disliked, setDisliked] = React.useState([]);
+  const [dragX, setDragX] = React.useState(0);
+  const [isDragging, setIsDragging] = React.useState(false);
+  const [swipeDir, setSwipeDir] = React.useState(null);
+  const [animOut, setAnimOut] = React.useState(null);
+  const [showMatch, setShowMatch] = React.useState(null);
+  const [tab, setTab] = React.useState("swipe");
+  const dragStart = React.useRef(null);
 
   const top = deck[deck.length - 1];
 
@@ -364,11 +364,11 @@ function ABtn({ color, bg, onClick, children }) {
   );
 }
 
-export default function AutoMatch() {
-  const [screen, setScreen] = useState("filter");
-  const [cars, setCars] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+function AutoMatch() {
+  const [screen, setScreen] = React.useState("filter");
+  const [cars, setCars] = React.useState([]);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState(null);
 
   const handleSearch = async (filters) => {
     setLoading(true);
@@ -377,7 +377,9 @@ export default function AutoMatch() {
       const params = new URLSearchParams();
       Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
 
-      const res = await fetch(`${PROXY}/api/search?${params.toString()}`);
+      // Holt sich die Backend-URL dynamisch aus dem globalen Fenster-Objekt, falls Vercel sie injiziert hat
+      const backendUrl = window.VITE_BACKEND_URL || PROXY;
+      const res = await fetch(`${backendUrl}/api/search?${params.toString()}`);
       if (!res.ok) throw new Error(`Server Fehler ${res.status}`);
       const data = await res.json();
 
