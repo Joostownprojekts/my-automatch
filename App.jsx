@@ -1,4 +1,4 @@
-// App.jsx - Getunnelte Variante über ScraperAPI mit JavaScript-Rendering & Premium-IPs
+// App.jsx - Getunnelte Variante über mobile.de App-API-Schnittstelle via ScraperAPI
 
 const fmtPrice = (p) => Number(p).toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const fmtKm = (k) => Number(k).toLocaleString("de-DE") + " km";
@@ -32,7 +32,7 @@ function FilterScreen({ onSearch, loading, error }) {
           <span style={{ color: "#fff" }}>Auto</span>
           <span style={{ background: "linear-gradient(90deg,#ff4b4b,#ff9b00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Match</span>
         </div>
-        <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>ScraperAPI Premium Render Tunnel 🛡️🚀</div>
+        <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>Mobile.de App-API Core Secure Tunnel 🛡️⚡</div>
       </div>
 
       <Sec title="⛽ Antrieb">
@@ -86,7 +86,7 @@ function FilterScreen({ onSearch, loading, error }) {
           cursor: loading ? "not-allowed" : "pointer", marginTop: 4,
         }}
       >
-        {loading ? "Echter Browser startet im Tunnel (ca. 5s)…" : "🔥 Los swipe'n"}
+        {loading ? "Daten werden direkt aus API bezogen…" : "🔥 Los swipe'n"}
       </button>
     </div>
   );
@@ -368,40 +368,38 @@ function AutoMatch() {
     setError(null);
     try {
       const params = new URLSearchParams();
-      params.set('s', 'Car');
-      params.set('isSearchRequest', 'true');
-      params.set('sb', 'rel');
-      params.set('vc', 'Car');
-      params.set('damUnrep', 'false');
+      params.set('customerId', '');
+      params.set('pageNumber', '1');
+      params.set('pageSize', '25');
+      params.set('sortField', 'RELEVANCE');
+      params.set('sortOrder', 'DESCENDING');
 
-      if (filters.priceMin) params.set('p', `${filters.priceMin}:`);
-      if (filters.priceMax) params.set('p', `${filters.priceMin || ''}:${filters.priceMax}`);
-      if (filters.kmMax)    params.set('ml', `:${filters.kmMax}`);
-      if (filters.yearMin)  params.set('fr', `${filters.yearMin}:`);
-      if (filters.fuel)     params.set('ft', filters.fuel);
-      if (filters.gearbox)  params.set('tr', filters.gearbox);
+      if (filters.priceMin) params.set('price.min', filters.priceMin);
+      if (filters.priceMax) params.set('price.max', filters.priceMax);
+      if (filters.kmMax)    params.set('mileage.max', filters.kmMax);
+      if (filters.yearMin)  params.set('firstRegistration.min', `${filters.yearMin}-01`);
+      if (filters.fuel)     params.set('fuelTypes', filters.fuel);
+      if (filters.gearbox)  params.set('transmissions', filters.gearbox);
       if (filters.plz) { 
-        params.set('zip', filters.plz); 
-        params.set('zipr', filters.radius || '50'); 
+        params.set('localArea.zipCode', filters.plz); 
+        params.set('localArea.radius', filters.radius || '50'); 
       }
 
-      const mobileUrl = `https://suchen.mobile.de/fahrzeuge/search.html?${params.toString()}`;
-      const scraperUrl = `https://api.scraperapi.com?api_key=4a13f39e7abb638bb4ccadb182026345&url=${encodeURIComponent(mobileUrl)}&country_code=de&render=true&premium=true`;
+      // Wir steuern die offizielle mobile.de JSON API-Schnittstelle an
+      const mobileApiUrl = `https://m.mobile.de/svc/s/listings?${params.toString()}`;
+      const scraperUrl = `https://api.scraperapi.com?api_key=4a13f39e7abb638bb4ccadb182026345&url=${encodeURIComponent(mobileApiUrl)}&country_code=de`;
 
-      const res = await fetch(scraperUrl);
-      if (!res.ok) throw new Error("Verbindung zum sicheren Proxy-Server fehlgeschlagen.");
+      const res = await fetch(scraperUrl, {
+        headers: {
+          "Accept": "application/json",
+          "User-Agent": "MobileDeApp/4.44.0 (iPhone; iOS 16.5; Scale/3.00)"
+        }
+      });
       
-      const html = await res.text();
-
-      const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
-      if (!match) {
-        throw new Error("Proxy-Limit erreicht oder mobile.de hat ungewöhnlich reagiert. Versuche es gleich noch einmal.");
-      }
-
-      const nextData = JSON.parse(match[1]);
-      const listings = nextData?.props?.pageProps?.srp?.data?.listings
-        || nextData?.props?.pageProps?.listings
-        || [];
+      if (!res.ok) throw new Error("Verbindung zur Schnittstelle unterbrochen. Bitte versuche es noch einmal.");
+      
+      const data = await res.json();
+      const listings = data?.listings || [];
 
       if (!listings.length) {
         setError("Keine Treffer gefunden. Passe deine Filter an.");
@@ -410,30 +408,27 @@ function AutoMatch() {
       }
 
       const normalized = listings.map(ad => {
-        const v = ad.attributes || ad;
         return {
           id: ad.id,
-          make: v.make?.displayValue || v.make || '',
-          model: v.model?.displayValue || v.model || '',
-          title: ad.description || v.modelDescription || '',
-          price: v.price?.amount || v.grossPrice || null,
-          currency: 'EUR',
-          mileage: v.mileage?.value || v.mileage || null,
-          power_kw: v.power?.kw || null,
-          fuel: v.fuel?.displayValue || v.fuel || null,
-          gearbox: v.gearbox?.displayValue || v.gearbox || null,
-          firstRegistration: v.firstRegistration || null,
-          tuev: v.generalInspection || null,
-          city: v.sellerAddress?.city || v.location?.city || null,
-          image: ad.previewImage?.src || ad.images?.[0]?.src || null,
-          url: ad.relativeUrl ? `https://suchen.mobile.de${ad.relativeUrl}` : null
+          make: ad.make || '',
+          model: ad.model || '',
+          price: ad.price?.amount || null,
+          mileage: ad.mileage || null,
+          power_kw: ad.powerKw || null,
+          fuel: ad.fuelType || null,
+          gearbox: ad.transmission || null,
+          firstRegistration: ad.firstRegistration || null,
+          tuev: ad.hu || null,
+          city: ad.location || null,
+          image: ad.images?.[0]?.uri ? ad.images[0].uri.replace('{size}', '400x300') : null,
+          url: ad.id ? `https://suchen.mobile.de/fahrzeuge/details.html?id=${ad.id}` : null
         };
       });
 
       setCars(normalized);
       setScreen("swipe");
     } catch (e) {
-      setError(e.message || "Fehler beim Laden der Inserate.");
+      setError("Die Daten konnten nicht geladen werden. Bitte versuche es gleich noch einmal.");
     }
     setLoading(false);
   };
